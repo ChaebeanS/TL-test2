@@ -1,0 +1,334 @@
+@font-face { 
+  font-family: 'GangwonEduHyeonokT'; 
+  src: url('https://cdn.jsdelivr.net/gh/wooin21/web/fonts/GWedu/GangwonEduHyeonokT.woff') format('woff'); 
+  font-weight: normal; 
+  font-style: normal; 
+}
+@import 'pretendard/dist/web/static/pretendard.css';
+
+
+/* --------------------------------------------------------- */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar{ display: none !important; }
+
+body{
+  line-height: 1.6; 
+  min-height: 100vh; 
+  overflow-x: hidden;
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 300;
+}
+
+a{ text-decoration: none; color: inherit; }
+
+ul, li{  list-style: none; }
+
+img{ display: block; }
+
+button{
+  cursor: pointer;
+  border: none;
+  background: none;
+  font: inherit;
+}
+
+input{ outline: none; }
+
+/* --------------------------------------------------------- */
+
+// Page Layout
+
+/* --------------------------------------------------------- */
+
+// Desktop (기본 / 1024px 이상)
+
+.main{
+  background: url('/imgs/bgimg.jpg') no-repeat center/cover; 
+  background-attachment: fixed;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  .delivery-wrapper{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative; 
+    width: 100%;
+
+    .plane{
+      position: absolute;
+      bottom: -115px;
+      left: 50%; 
+      transform: translateX(-50%);
+
+      img{
+        width: 6rem;
+        height: auto;
+      }
+    }
+  }
+
+  .menu-bar{
+    color: white;
+    background-color: rgba(0, 0, 0, 0.6);
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    position: fixed;
+    top: 0;
+    z-index: 1000;
+    transition: transform 0.3s ease; 
+
+    &.hover{ opacity :0; }
+    &.hover:hover, &.pinned{ opacity: 1; }
+    
+    .menu{
+      width: 80vw;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      & a:hover{ color: #58D3FF; }
+
+      .user{
+        display: flex;
+        align-items: end;
+        font-weight: 100;
+        .userLink{font-size:1rem;}
+        .user-name{ font-weight: 400; }
+        .comment{ white-space: pre-wrap; }
+        
+        .user-bnt{
+          margin-left: 10px;
+          font-size: small;
+          font-weight: 300;
+          display: flex;
+          gap: 5px;
+
+          button{
+            color: inherit;
+            &:hover{ color: #58D3FF; }
+          }
+        }
+      }
+      
+      nav{
+        .burger{ color: white; display: none; }
+        .menu-list{
+          display: flex;
+          gap: 15px;
+          align-items: center;
+  
+          a.active{ color: #58D3FF; }
+        }
+      }
+    }
+
+    .icon{   
+      display: flex;
+      align-items: center;
+      font-size: 1.1rem;      
+      cursor: pointer;
+      &.active{ color: #58D3FF; }
+    }
+  }
+
+  .logo{
+    font-size: 6rem;
+    color: white;
+    text-shadow: 2px 2px 7px rgba(20, 60, 75, 0.3);
+    margin-top: 30px;
+  }
+
+  .container{
+    background-color: white;
+    border-radius: 40px; 
+    width: 75vw;
+    margin-top: 5px; 
+    margin-bottom: 3vh;   
+    min-height: 75vh; 
+    height: auto; 
+    padding: 20px 40px;
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.2);
+
+    .title{  
+      display: flex;
+      h1{
+          font-family: 'GangwonEduHyeonokT';
+          font-size: 4rem; 
+          position: relative;
+          z-index: 5;
+          
+          &::after{
+            content: "";
+            position: absolute;
+            z-index: -1;
+            left: 0;
+            bottom: 35%;
+            width: 100%;
+            height: 15px;
+            background-color: #58D3FF; 
+          }
+      }
+    }
+  }
+}
+
+// Tablet Landscape (951px ~ 1024px)
+
+@media (max-width: 1024px) {
+  body{ font-size: 15px;}
+
+  .main{
+
+    .delivery-wrapper .plane{ bottom: -140px; }   
+    .menu-bar .menu{ width: 90vw; }
+    .logo{ font-size: 4.5rem; }
+
+    .container{ 
+      width: 90vw; 
+      margin-top: 0px;
+      padding: 10px 20px; 
+
+      .title h1{ font-size: 2.7rem; }
+    }
+  }
+}
+
+// Tablet Portrait (950px 이하)
+
+@media (max-width: 950px) {
+  body{ font-size: 15px;}
+
+  .main{
+
+    .delivery-wrapper{
+      .plane{
+        bottom: -50px;
+        img{ width: 4.5rem; }
+      }
+    }        
+
+    .menu-bar{     
+      .menu{
+        width: 90vw;
+
+        .user{
+          display: flex;
+          align-items: end;
+          font-weight: 100;
+          span{ font-weight: 300; }
+          
+          .user-bnt{
+            margin-left: 10px;
+            font-size: small;
+            font-weight: 300;
+            display: flex;
+            gap: 5px;
+
+            button{
+              color: inherit;
+              &:hover{ color: #58D3FF; }
+            }
+          }
+        }      
+
+        nav{
+          .burger{ display: block; }
+
+          .menu-list{
+            &.active{ display: flex; }
+            display: none;
+            position: absolute;
+            top: 100%; right: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            flex-direction: column;
+            padding: 10px 15px;
+            gap: 10px;
+            z-index: 1001;  
+          }
+        }
+      }
+
+      .icon{   
+        display: flex;
+        align-items: center;
+        font-size: 1.1rem;      
+        cursor: pointer;
+        &.active{ color: #58D3FF; }
+      }
+    }
+
+    .logo{ 
+      font-size: 3.5rem;
+      margin-top: 50px; 
+    }
+
+    .container{
+      min-height: 78vh;
+      .title h1{ font-size: 2.5rem; }
+    }
+  }
+}
+
+// Mobile (480px 이하)
+
+@media (max-width: 480px) {
+  body{ font-size: 15px;}
+
+  .main{
+
+    .delivery-wrapper{
+      .plane{
+        bottom: -25px;
+        img{ width: 2.5rem; }
+      }
+    }    
+
+    .menu-bar{     
+      .menu{
+        width: 90vw;
+
+        .user .comment{ display: none; }          
+
+        nav{
+          .burger{ display: block; }
+
+          .menu-list{
+            &.active{ display: flex; }
+            display: none;
+            position: absolute;
+            top: 100%; right: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            flex-direction: column;
+            padding: 10px 15px;
+            gap: 10px;
+            z-index: 1001;  
+          }
+        }
+      }
+      .icon{ margin-right: 5px;}
+    }
+
+    .logo{ 
+      font-size: 3.3rem;
+      margin-top: 30px; 
+    }
+
+    .container{
+      min-height: 78vh;
+      .title h1{ font-size: 2rem; }
+    }
+  }
+}
