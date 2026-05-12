@@ -1,8 +1,8 @@
 'use client'
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom';
 import { FiPlus } from "react-icons/fi";
-import { FaCircle } from "react-icons/fa"
+import { FaCar, FaCircle, FaWalking } from "react-icons/fa"
 import { FaBus } from "react-icons/fa";
 import { FiSave } from "react-icons/fi";
 import { GrFormNext } from "react-icons/gr";
@@ -10,14 +10,28 @@ import { FiArrowLeftCircle } from "react-icons/fi";
 import { FiArrowRightCircle } from "react-icons/fi";
 import PlanOneDayMap from './PlanOneDayMap';
 import dayjs, { Dayjs } from 'dayjs'
+import { tripStore } from '@/app/store/tripStore';
+import { TbPencil } from 'react-icons/tb';
+import { RiDeleteBin6Line } from 'react-icons/ri';
+import { FaTrainSubway } from 'react-icons/fa6';
+import { BiSolidPlaneAlt } from 'react-icons/bi';
+import { MdDirectionsBoat } from 'react-icons/md';
 
-function PlanFullDay({tripData}) {
+function PlanFullDay({tripData,setTripData}) {
   const [dayPlan,setDayPlan]=useState(false)
-  const start=dayjs(tripData.start);
-  const end=dayjs(tripData.end);
 
-  const totalDays=end.diff(start,'day')+1;//날짜 차이 계산
-  //const totalDays=tripData.end.diff(tripData.start, 'day') +1;
+  const start = tripData?.start
+  ? dayjs(tripData.start)
+  : null;
+
+const end = tripData?.end
+  ? dayjs(tripData.end)
+  : null;
+
+const totalDays =
+  start && end
+    ? end.diff(start, 'day') + 1
+    : 0;
 
   const days=Array.from({length:totalDays}).map((_,idx)=>{//한번 배열로 빼야 슬라이드 가능 
     const date=start.add(idx,'day');
@@ -26,13 +40,16 @@ function PlanFullDay({tripData}) {
 
   const [selectedDay, setSelectedDay]=useState(null);//일정추가를 눌렀을떄 그게 Day1인지 2인지 알기 위해 구분
   const [oneDayMapAddScd, setOneDayMapAddScd]=useState(false);//하루씩 나오는 스케줄추가 페이지로 갈지 말지
+  const [isPopupOpen,setIsPopupOpen]=useState(false);
 
   //좌우 페이지 슬라이드
+  const [itemsPerPage, setItemsPerPage] = useState(3);
   const pages=[];
-  for(let i = 0; i < days.length; i +=3){
-    pages.push(days.slice(i,i+3));
-  }
+ for (let i = 0; i < days.length; i += itemsPerPage) {
+  pages.push(days.slice(i, i + itemsPerPage));
+}
   const [page,setPage]=useState(0);
+  
   const sliderRef=useRef(null);
   const next=()=>{
     sliderRef.current.scrollBy({left:window.innerWidth, behavior:'smooth'})
@@ -41,6 +58,44 @@ function PlanFullDay({tripData}) {
     sliderRef.current.scrollBy({left:-window.innerWidth, behavior:'smooth'})
   };
   
+  const getSchedulesByDay = (day) => {
+  return tripData?.scd?.filter(scd => scd.day == day) || [];
+  };
+
+  
+  //반응형으로 페이지당 보여주는 day 수 조절
+  useEffect(() => {
+
+    const handleResize = () => {
+      if (window.innerWidth <= 700) {
+      setItemsPerPage(1);
+      } else if (window.innerWidth <= 1300) {
+        setItemsPerPage(2);
+      } else {
+        setItemsPerPage(3);
+      }
+    };
+
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+
+  }, []);
+  
+  //교통수단 아이콘 매핑 추가
+  const moveIcons = {
+  bus: <FaBus />,
+  train: <FaTrainSubway />,
+  airplane: <BiSolidPlaneAlt />,
+  car: <FaCar />,
+  boat: <MdDirectionsBoat />,
+  walk: <FaWalking />
+  };
+
   //여행 완료버튼 생기면 이거 추가 
   /* const handleCompleteTrip = async () => {
     const session = JSON.parse(sessionStorage.getItem("session"));
@@ -75,10 +130,13 @@ function PlanFullDay({tripData}) {
        onClose={()=>setOneDayMapAddScd(false)}
        setOneDayMapAddScd={setOneDayMapAddScd}
        selectedDay={selectedDay}
+       isPopupOpen={isPopupOpen}
+       setIsPopupOpen={setIsPopupOpen}
+       moveIcons={moveIcons}
       />
     )
   }
-
+  console.log(tripData,'====');
   //false면 그냥 전체일정 보기 페이지로(PlanFullDay)
   return (
     <div className='planEditCont'>
@@ -89,33 +147,98 @@ function PlanFullDay({tripData}) {
              {pages.map((pageDays,pageIdx)=>(
               <div className='page' key={pageIdx}>
 
-                {pageDays.map(({idx,date})=>(
-                  <div className='planEditDay' key={idx}>
-                    <div className='planEditDayTxt'>
-                      <p>Day{idx+1}</p>
-                      <div>
-                        <p>{date.format('YYYY.MM.DD (ddd)')}</p>
-                        <a href='#'>지도 보기<GrFormNext/></a>
+                {pageDays.map(({idx,date})=>{
+                  const schedulesList = getSchedulesByDay(idx + 1);
+                  
+                  return(
+                    <div className='planEditDay' key={idx}>
+                      <div className='planEditDayTxt'>
+                        <p>Day{idx+1}</p>
+                        <div>
+                          <p>{date.format('YYYY.MM.DD (ddd)')}</p>
+                          <a onClick={()=>{
+                                setSelectedDay({
+                                  idx:idx,
+                                  date:date});//어떤 day인지,날짜인지 저장
+                                setOneDayMapAddScd(true);
+                                setIsPopupOpen(false);
+                          }}>지도 보기<GrFormNext/></a>
+                        </div>
+                      </div>
+                      <div className='planEditDayBox'>
+                        {schedulesList.length===0 ?
+                        
+                            (<div className='planEditDayBoxEmpty'>
+                              {tripData.status==='draft' ?
+                                <>
+                                  <a onClick={()=>{
+                                  setSelectedDay({
+                                    idx:idx,
+                                    date:date});//어떤 day인지,날짜인지 저장
+                                  setOneDayMapAddScd(true);
+                                  setIsPopupOpen(true);
+                                  }}>일정추가<FiPlus /></a>
+                                  <div>
+                                    <p>아직 추가된 일정이 없습니다!</p>
+                                    <p>일정을 추가해보세요!</p>
+                                  </div>
+                                </>
+                                :<div className='completed'>
+                                   <p>추가된 일정이 없습니다!</p>
+                                </div>
+                              }
+                            </div>
+                            )
+                            :
+                            (<div className='planEditDayBoxFilled'>
+                              {
+                                [...schedulesList]
+                                .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                                .map((scd,idx)=>(
+                                  <div className='oneSchedule' key={idx}>
+                                    <p className='scdTime'>{scd.startTime}</p>
+                                    <div className='timeLine'>
+                                      <div className='circle'><FaCircle /></div>
+                                    </div>
+                                    
+                                    <div className='scdContent'>
+                                        <p className='scdTitle'>{scd.scdTitle}</p>
+                                        {/* <div className='scdCRUD'>
+                                          <TbPencil onClick={() => {scdEditStart(scd),setOneDayMapAddScd(true)}}/>
+                                          <RiDeleteBin6Line onClick={()=>{scdDelete(scd._id),setOneDayMapAddScd(true)}} />
+                                        </div> */}
+                                      <p className='scdSpot'>{scd.scdPlace}</p>
+                                      <div className='scdMove'>
+                                        <p className='scdMoveIcon'>{moveIcons[scd.scdMove]}</p>
+                                        <p className='scdMoveMemo'>{scd.scdMoveMemo}</p>
+                                      </div>
+                                    </div>
+                                      
+                                    
+                                  </div>
+                        
+                                ))
+                              }
+                                {
+                                  tripData.status==='draft' &&
+                                  <a onClick={()=>{
+                                  setSelectedDay({
+                                    idx:idx,
+                                    date:date});//어떤 day인지,날짜인지 저장
+                                  setOneDayMapAddScd(true);
+                                  setIsPopupOpen(true);
+                                  }}>일정추가<FiPlus /></a>
+                                }
+                            </div>
+                            )
+                          }
+                          
                       </div>
                     </div>
-                    <div className='planEditDayBox'>
-                        {/* 스케줄 하나도 없는 날일때 */}
-                        <div className='planEditDayBoxEmpty'>
-                            <a onClick={()=>{
-                              setSelectedDay({
-                                idx:idx,
-                                date:date});//어떤 day인지,날짜인지 저장
-                              setOneDayMapAddScd(true);
-                            }}>일정추가<FiPlus /></a>
-                            <div>
-                              <p>아직 추가된 일정이 없습니다!</p>
-                              <p>일정을 추가해보세요!</p>
-                            </div>
-                        </div>
-                    </div>
-                  </div>
 
-                ))}
+                  )
+
+                })}
               </div>
              ))}
         </div> 

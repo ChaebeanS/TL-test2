@@ -7,6 +7,11 @@ import { LuCirclePlus } from "react-icons/lu";
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { TbPencil } from "react-icons/tb";
 import { authStore } from '@/app/store/authStore';
+import { tripStore } from "@/app/store/tripStore";
+import { useRouter } from "next/navigation";
+import Loading from "@/app/comp/Loading";
+import Guide from "@/app/comp/Guide";
+import Link from "next/link";
 
 function Check() {
   const [items, setItems] = useState([]);
@@ -14,19 +19,38 @@ function Check() {
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const {session, setShowLogin} = authStore();
+  const {tripData, setTripData, isGuide} = tripStore();
   const nodeRefs = useRef({});
-
+  const router = useRouter();
   // [GET] 페이지 로드 시 DB 데이터 호출
   useEffect(() => {
     const fetchChecklist = async () => {
       try {
         // 저장 내용 O
-        if (session) {
-          const response = await fetch("/api/checkList");
+
+        const defaultId = Date.now();
+        const defaultBundle = {
+          id: defaultId,
+          category: "세면용품",
+          subItems: [
+            { id: Date.now() + 1, text: "치약/칫솔", checked: false },
+            { id: Date.now() + 2, text: "폼클렌저", checked: false },
+            { id: Date.now() + 3, text: "샴푸", checked: false },
+            { id: Date.now() + 4, text: "수건", checked: false },
+            { id: Date.now() + 5, text: "스킨케어", checked: false }
+          ],
+          isEditing: false
+        };
+
+        nodeRefs.current[defaultId] = React.createRef();
+        setItems([defaultBundle]);
+
+
+        if (session && tripData) {
+          const response = await fetch(`/api/checkList?tripId=${tripData._id}`);
           const data = await response.json();
           if(data.checklist && data.checklist.length > 0 ){
             // 불러온 데이터의 id마다 ref(번들정보) 생성
-
             data.checklist.forEach(item => {
               if (!nodeRefs.current[item.id]) {
                 nodeRefs.current[item.id] = React.createRef();
@@ -36,24 +60,7 @@ function Check() {
           }
         }
         // 저장 내용 X : 추천리스트
-        else {
-          const defaultId = Date.now();
-          const defaultBundle = {
-            id: defaultId,
-            category: "세면용품",
-            subItems: [
-              { id: Date.now() + 1, text: "치약/칫솔", checked: false },
-              { id: Date.now() + 2, text: "폼클렌저", checked: false },
-              { id: Date.now() + 3, text: "샴푸", checked: false },
-              { id: Date.now() + 4, text: "수건", checked: false },
-              { id: Date.now() + 5, text: "스킨케어", checked: false }
-            ],
-            isEditing: false
-          };
-
-          nodeRefs.current[defaultId] = React.createRef();
-          setItems([defaultBundle]);
-        }
+       
       } catch (error) { console.error("데이터 로드 실패:", error); }
     };
     fetchChecklist();
@@ -70,13 +77,22 @@ function Check() {
 
   // [SAVE] DB로 현재 상태(위치 포함) 저장 / 저장 성공여부 팝업
   const saveItems = async () => {
+    
+    
     if(!session){ setShowLogin(); return; }
+    if(!tripData){
+      alert('여행지를 작성하세요.'); 
+      router.push('/planner')
+      return;
+    } 
+
+
     setIsSaving(true);
     try {
       const response = await fetch("/api/checkList", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checklist: items}),
+        body: JSON.stringify({ checklist: items, tripId:tripData._id, userId:session.user.email}),
       });
 
       if (response.ok) {
@@ -91,8 +107,13 @@ function Check() {
   // 버튼 클릭 시 새로운 항목 추가 함수
   const addItem = () => {
     if(!session){ setShowLogin(); return; }
-    //setIsSaving(true);
-    console.log("add");
+
+    if(!tripData){
+      alert('여행지를 작성하세요.'); 
+      router.push('/planner')
+      return;
+    } 
+
     const newId = Date.now();
     const deactivatedItems = items.map(item => ({ ...item, isEditing: false }));
     const x = (window.innerWidth * 0.75 / 2) - 110;
@@ -112,7 +133,6 @@ function Check() {
   // 편집 모드 토글
   const toggleEdit = (id, e) => {     
     if(!session){ setShowLogin(); return; } 
-    setIsSaving(true);
     e.stopPropagation(); // 부모 클릭시 이벤트 방지    
     const changeItems = items.map(
       item => item.id === id ? { ...item, isEditing: !item.isEditing } : { ...item, isEditing: false }
@@ -129,7 +149,6 @@ function Check() {
   // 번들 삭제
   const deleteBundle = (id) => {
     if(!session){ setShowLogin(); return; }
-    setIsSaving(true);
     const changeItems = items.filter(bundle => bundle.id !== id);
     setItems(changeItems);
   };
@@ -187,7 +206,6 @@ function Check() {
   // 체크박스 핸들러 
   const toggleCheck = (bundleId, subId) => {
     if(!session){ setShowLogin(); return; }
-    setIsSaving(true);
     console.log("toggleCheck");
     const changeItems = items.map(bundle => {
       if (bundle.id === bundleId && !bundle.isEditing) { // 비활성화일 때 가능
@@ -217,82 +235,127 @@ function Check() {
   return (
     <section className="checklist" onClick={disableAllEdit}>
       <div className="title">
-        <div className="title2">
-          <h1>체크리스트</h1>
-          <span onClick={(e) => { e.stopPropagation(); addItem(); }} style={{ cursor: 'pointer' }}>
-            <LuCirclePlus />
-          </span>
-        </div>
-        <h3 onClick={saveItems} style={{ cursor: 'pointer' }}>
-          {isSaving ? "저장중" : "저장하기"} <span>✔</span>
-        </h3>
+
+        {
+        tripData?.status==='draft' && isGuide ?
+        <>
+          <div className="title2">
+            <h1>체크리스트</h1>
+            
+            <span onClick={(e) => { e.stopPropagation(); addItem(); }} style={{ cursor: 'pointer' }}>
+              <LuCirclePlus />
+            </span>
+            
+          </div>
+          <h3 onClick={saveItems} style={{ cursor: 'pointer' }}>
+            {isSaving ? "저장중" : "저장하기"} <span>✔</span>
+          </h3>
+        </>
+        :
+          <div className="title2">
+            <h1>체크리스트</h1>
+          </div>
+        }
       </div>
 
-      <div className={`list ${isResize ? 'active' : ''}`}>
-        {items.map((bundle) => (
-          <Draggable key={bundle.id}
-            disabled={isResize} // pc외에 Draggable 막기
-            //cancel=".edit-btn, .del-sub-btn, .add-btn"
-            nodeRef={nodeRefs.current[bundle.id]}
-            bounds="parent"
-            defaultPosition={bundle.position}  // DB에서 가져온 위치값 로드
-            position={isResize ? {x:0,y:0} :bundle.position}
-            onStop={(e, data) => handleStop(bundle.id, e, data)} // 새로운 위치값 업로드
-          >
-            <div ref={nodeRefs.current[bundle.id]}
-              className={`bundle ${bundle.isEditing ? 'editing' : ''}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="border">
-                <div className="category">
-                  <span className="hidden-text">{bundle.category || "카테고리"}</span>
-                  <input
-                    type="text"
-                    readOnly={!bundle.isEditing}
-                    placeholder="카테고리"
-                    value={bundle.category}
-                    maxLength={7}
-                    onChange={(e) => handleInputChange(bundle.id, 'category', e.target.value)}
-                  />
-                </div>
-                <span className="edit-btn" onClick={(e) => 
-                  bundle.isEditing ? deleteBundle(bundle.id) : toggleEdit(bundle.id, e)
-                }>
-                  {bundle.isEditing ? <RiDeleteBin6Line /> : <TbPencil />}
-                </span>
-              </div>
-
-              <div className="item-list">
-                {bundle.subItems.map((sub) => (
-                  <div key={sub.id} className="item">
-                    <input className="check-box" type="checkbox" checked={sub.checked}
-                      onChange={() => toggleCheck(bundle.id, sub.id)} disabled={bundle.isEditing} />
-                    <input
-                      className={`check-text ${sub.checked ? "done" : ""}`}
-                      type="text"
-                      readOnly={!bundle.isEditing}
-                      placeholder="아이템"
-                      value={sub.text}
-                      maxLength={8}
-                      onChange={(e) => handleSubInputChange(bundle.id, sub.id, e.target.value)}
-                    />
-                    <span className="del-sub-btn" onClick={() => 
-                      deleteSubItem(bundle.id, sub.id)} style={{ cursor: 'pointer' }
-                    }>
-                      <RiDeleteBin6Line />
-                    </span>
+      {(tripData?.status==='draft' || tripData?.status==='complete') && isGuide ? 
+          <div className={`list ${isResize ? 'active' : ''}`}>
+            {items.map((bundle) => (
+              <Draggable key={bundle.id}
+                disabled={isResize} // pc외에 Draggable 막기
+                //cancel=".edit-btn, .del-sub-btn, .add-btn"
+                nodeRef={nodeRefs.current[bundle.id]}
+                bounds="parent"
+                defaultPosition={bundle.position}  // DB에서 가져온 위치값 로드
+                position={isResize ? {x:0,y:0} :bundle.position}
+                onStop={(e, data) => handleStop(bundle.id, e, data)} // 새로운 위치값 업로드
+              >
+                <div ref={nodeRefs.current[bundle.id]}
+                  className={`bundle ${bundle.isEditing ? 'editing' : ''}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="border">
+                    <div className="category">
+                      <span className="hidden-text">{bundle.category || "카테고리"}</span>
+                      <input
+                        type="text"
+                        readOnly={!bundle.isEditing}
+                        placeholder="카테고리"
+                        value={bundle.category}
+                        maxLength={7}
+                        onChange={(e) => handleInputChange(bundle.id, 'category', e.target.value)}
+                      />
+                    </div>
+                    {
+                      tripData?.status==='draft' &&
+                      <span className="edit-btn" onClick={(e) => 
+                        bundle.isEditing ? deleteBundle(bundle.id) : toggleEdit(bundle.id, e)
+                      }>
+                        {bundle.isEditing ? <RiDeleteBin6Line /> : <TbPencil />}
+                      </span>
+                    }
                   </div>
-                ))}
-              </div>
-              {bundle.isEditing &&
-                <span className="add-btn" onClick={() => addSubItem(bundle.id)}>
-                  <LuCirclePlus />
-                </span>
-              }
-            </div>
-          </Draggable>
-        ))}
-      </div>
+
+                  <div className="item-list">
+                    {bundle.subItems.map((sub) => (
+                      <div key={sub.id} className="item">
+                        
+                          <input className="check-box" type="checkbox" checked={sub.checked}
+                            onChange={() => toggleCheck(bundle.id, sub.id)} disabled={bundle.isEditing} />
+                        
+                        <input
+                          className={`check-text ${sub.checked ? "done" : ""}`}
+                          type="text"
+                          readOnly={!bundle.isEditing}
+                          placeholder="아이템"
+                          value={sub.text}
+                          maxLength={8}
+                          onChange={(e) => handleSubInputChange(bundle.id, sub.id, e.target.value)}
+                        />
+                        <span className="del-sub-btn" onClick={() => 
+                          deleteSubItem(bundle.id, sub.id)} style={{ cursor: 'pointer' }
+                        }>
+                          <RiDeleteBin6Line />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {bundle.isEditing &&
+                    <span className="add-btn" onClick={() => addSubItem(bundle.id)}>
+                      <LuCirclePlus />
+                    </span>
+                  }
+                </div>
+              </Draggable>
+            ))}
+          </div>
+        :
+          <Guide>
+            <figure className="sampleGuide">
+                  <p><img src="/imgs/all/guide_checkList.jpg" /></p>
+
+                  <figcaption className="sampleTitle">
+                      <b>여행 준비 체크도 스마트하게!</b>
+
+                      <div className="sampleCaption">
+                          <div className="sampleNote">
+                              <p>여행 전 필수 준비, 한 곳에서 준비물을 기록하고 화면에 자유롭게 배치해보세요.</p>
+                              <span>* 작성이 끝났다면 저장 버튼을 꼭 눌러주세요.</span>
+                          </div>
+                          
+                              <div className="sampleButton">
+                                  <Link href='/planner'>
+                                      <span>일정 등록하러 가기</span>
+                                      <img src='/imgs/attrantions/fluent_calendar-edit-16-regular.svg' />
+                                  </Link>
+                              </div>
+                          
+                    
+                      </div>
+                  </figcaption>
+              </figure>
+          </Guide>
+      }
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>

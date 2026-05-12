@@ -6,8 +6,8 @@ import { useMemo } from "react";
 
 const containerStyle = {
   width: "100%",
-  height: "550px",
-  borderRadius: "10px",
+  height: "100%",
+  borderRadius: "20px",
   border: "1px solid #d4d4d4",
 };
 
@@ -21,35 +21,38 @@ export default function GeocoderMapOneDay({ itemMarkers , selectedAddress,setMap
 
   const [center, setCenter] = useState(mapCenter || defaultCenter);
   
-
   // 마커를 여러개 찍히도록 배열로 만들기
   const markers = useMemo(() => {
-    return (itemMarkers || []).map((item) => ({
+    if (!Array.isArray(itemMarkers)) return [];
+
+    return itemMarkers
+    .filter(item => item?.mapx && item?.mapy)
+    .map(item => ({
       lat: Number(item.mapy),
       lng: Number(item.mapx),
+      order: item.order,
     }));
   }, [itemMarkers]);
 
-   //마커추가할때마다 지도가 계속 이동하므로 삭제
+  //마커추가할때마다 지도가 계속 이동하므로 삭제
   /* useEffect(() => {
-  if (!mapRef.current || markers.length === 0) return;
+    if (!mapRef.current || markers.length === 0) return;
 
-  const bounds = new window.google.maps.LatLngBounds();
+    const bounds = new window.google.maps.LatLngBounds();
 
-  markers.forEach((m) => {
-    bounds.extend(new window.google.maps.LatLng(m.lat, m.lng));
-  });
+    markers.forEach((m) => {
+      bounds.extend(new window.google.maps.LatLng(m.lat, m.lng));
+    });
 
-  if (markers.length === 1) {
-    mapRef.current.setCenter(markers[0]);
-    mapRef.current.setZoom(19); // 단일 마커(첫 마커) 줌 조절
-    return;
-  }
+    if (markers.length === 1) {
+      mapRef.current.setCenter(markers[0]);
+      mapRef.current.setZoom(19); // 단일 마커(첫 마커) 줌 조절
+      return;
+    }
 
-  mapRef.current.fitBounds(bounds, 80); // 지도가 마커 따라감 + 패딩으로 과한 줌인 방지
-}, [markers]); */
+    mapRef.current.fitBounds(bounds, 80); // 지도가 마커 따라감 + 패딩으로 과한 줌인 방지
+  }, [markers]); */
   
-
   useEffect(() => {
     if (!mapRef.current) return;
   }, [markers]);
@@ -59,25 +62,25 @@ export default function GeocoderMapOneDay({ itemMarkers , selectedAddress,setMap
     libraries: ["geometry", "places"],
   });
 
-
   const [response, setResponse] = useState("");
   /* const [input, setInput] = useState(""); */
 
   const mapRef = useRef(null);
   const geocoderRef = useRef(null);
+  const [mapLoad,setMapLoad] = useState();
 
   const onLoad = useCallback((map) => {
     mapRef.current = map;
     geocoderRef.current = new window.google.maps.Geocoder();
+    setMapLoad(1)
   }, []);
-  
+
   //검색하면 지도이동
   useEffect(() => {
   if (!geocoderRef.current || !selectedAddress) return;
   
   //마커 있으면 주소 이동 막기
   /* if (itemMarkers.length > 0) return; */
-
   geocoderRef.current
     .geocode({ address: selectedAddress })
     .then((result) => {
@@ -87,16 +90,16 @@ export default function GeocoderMapOneDay({ itemMarkers , selectedAddress,setMap
         lat: location.lat(),
         lng: location.lng()
       };
+      
 
       mapRef.current.panTo(newCenter);
       mapRef.current.setZoom(10);
-      
       setCenter(newCenter);
-      setMapCenter(newCenter); //부모에 저장
+      //setMapCenter(newCenter); //부모에 저장
     })
     .catch((e) => console.error(e));
 
-  }, [selectedAddress]);
+  }, [mapLoad]);
 
   //지역,관광지 저장이후 다시 들어가서 지역바꾸고 취소누르고 나와서 다시들어갈때 지도 위치 기존 마커 기준
   useEffect(() => {
@@ -128,44 +131,10 @@ export default function GeocoderMapOneDay({ itemMarkers , selectedAddress,setMap
     mapRef.current.fitBounds(bounds, 80);
   }, [itemMarkers]);
 
-
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        /* console.log("현재 위치:", {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        }); */
-
-        setCenter({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-      },
-      (error) => {
-        console.log("위치 실패", error);
-      }
-    );
-  }, []);
-
-
   if (!isLoaded) return <div>Loading...</div>;
 
   return (
     <div>
-      {/* <div style={{ marginBottom: "10px" }}>
-        <input
-          type="text"
-          placeholder="Enter a location"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <button onClick={handleGeocode}>Geocode</button>
-        <button onClick={handleClear}>Clear</button>
-      </div> */}
-
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={center}
@@ -177,23 +146,39 @@ export default function GeocoderMapOneDay({ itemMarkers , selectedAddress,setMap
           streetViewControl: false,
           fullscreenControl: false,
           mapTypeControl: false,
-          gestureHandling: "greedy", //ctrl없이 그냥 줌인가능
+          gestureHandling: "greedy", //ctrl없이 그냥 줌가능
         }}
-      >
-        {/* <Polyline
+      > 
+        {/* 마커 사이 선 */}
+        <Polyline
+          //key={markers.length} 
           path={markers.length >= 2 ? markers : []}
           options={{
-            strokeColor: "#FF0000",
+            strokeColor: "#27678E",
             strokeOpacity: 0.8,
             strokeWeight: 4,
           }}
-        /> */}
+        />
 
         {markers.map((m, idx) => (
           // 실제 마커가 찍히는 부분
           <Marker
             key={idx}
             position={{ lat: m.lat, lng: m.lng }}
+            label={{
+              text: String(m.order),
+              color: "#ffffff",
+              fontSize: "14px",
+              fontWeight: "400",
+            }}
+            icon={{
+              path: window.google.maps.SymbolPath.CIRCLE,
+              fillColor: "#27678E",
+              fillOpacity: 1,
+              strokeColor: "#ffffff",
+              strokeWeight: 2,
+              scale: 14,
+            }}
           />
         ))}
       </GoogleMap>
