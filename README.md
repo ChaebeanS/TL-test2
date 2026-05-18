@@ -30,7 +30,7 @@
 ------------------
 
 ## 🔗 배포 URL
-**TRIPLOG** https://trip-log-chi.vercel.app/planner
+**TRIPLOG** https://tl-test-d37y.vercel.app
 
 ---------------
 
